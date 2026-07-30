@@ -79,6 +79,7 @@ export function VideoCard({ audio }: { audio: AudioController }) {
             loop
             playsInline
             autoPlay
+            preload="metadata"
             controls={false}
             className="block h-auto max-h-[66vh] w-full object-contain"
           />

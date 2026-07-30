@@ -52,7 +52,10 @@ export function NightSky() {
 
     let width = 0;
     let height = 0;
-    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let small = window.innerWidth < 640;
+    // Phones: cap the backing store at 1.5× instead of 2× — a quarter fewer
+    // pixels to fill every frame, invisible to the eye on a star field.
+    let dpr = Math.min(window.devicePixelRatio || 1, small ? 1.5 : 2);
 
     let stars: Star[] = [];
     let bokeh: Bokeh[] = [];
@@ -62,7 +65,8 @@ export function NightSky() {
     const build = () => {
       width = window.innerWidth;
       height = window.innerHeight;
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      small = width < 640;
+      dpr = Math.min(window.devicePixelRatio || 1, small ? 1.5 : 2);
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       canvas.style.width = `${width}px`;
@@ -70,20 +74,20 @@ export function NightSky() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       // Star density scales with screen area, capped (lower on phones for fps).
-      const small = width < 640;
-      const cap = small ? 220 : 460;
-      const divisor = small ? 5200 : 4000;
+      const cap = small ? 120 : 460;
+      const divisor = small ? 9000 : 4000;
       const count = Math.min(cap, Math.round((width * height) / divisor));
       stars = Array.from({ length: count }, () => ({
         x: rand(0, width),
         y: rand(0, height),
-        r: rand(0.5, 2.1),
+        r: small ? rand(0.8, 2.4) : rand(0.5, 2.1),
         baseAlpha: rand(0.42, 1),
         twinkleSpeed: rand(0.6, 2.4),
         phase: rand(0, Math.PI * 2),
       }));
 
-      const bokehCount = Math.min(13, Math.round((width * height) / 150000));
+      // Each bokeh orb rebuilds a radial gradient every frame — keep few on phones.
+      const bokehCount = Math.min(small ? 5 : 13, Math.round((width * height) / 150000));
       bokeh = Array.from({ length: bokehCount }, () => ({
         x: rand(0, width),
         y: rand(0, height),
@@ -102,8 +106,13 @@ export function NightSky() {
       ctx.beginPath();
       ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
       ctx.fillStyle = "#fff";
-      ctx.shadowBlur = 6;
-      ctx.shadowColor = "rgba(255,240,250,0.9)";
+      // A canvas shadowBlur is re-rasterised per star, per frame — far too
+      // costly on phones. Desktops keep the halo, phones get a slightly larger
+      // crisp dot, which reads the same at arm's length.
+      if (!small) {
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = "rgba(255,240,250,0.9)";
+      }
       ctx.fill();
       ctx.shadowBlur = 0;
     };
@@ -208,9 +217,18 @@ export function NightSky() {
     };
     window.addEventListener("resize", onResize);
 
+    // Stop burning frames (and battery) while the page is in the background.
+    const onVisibility = () => {
+      if (reduced) return;
+      cancelAnimationFrame(raf);
+      if (!document.hidden) raf = requestAnimationFrame(loop);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onVisibility);
       void last;
     };
   }, [reduced]);

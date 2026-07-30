@@ -93,20 +93,37 @@ body {
     0 0 34px rgba(231, 183, 163, 0.4);
 }
 
-/* Gradient text used for the big title */
+/* The big title.
+   Each letter gets its own opaque colour from JS (see AnimatedTitle), so there
+   is no `background-clip: text` to break on Android. Here we only add the halo
+   plus a dark contour that keeps it readable over the stars and the bokeh. */
+.title-legible {
+  color: var(--rose-pastel); /* fallback before the per-letter colours apply */
+  text-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.6),
+    0 0 16px rgba(255, 214, 232, 0.55),
+    0 0 36px rgba(255, 159, 196, 0.35);
+}
+
+/* Gradient text — safe for *static* text only (never for animated glyphs:
+   a transform/filter on a child pulls it out of the clip and it vanishes). */
 .gradient-title {
-  background: linear-gradient(
-    100deg,
-    var(--rose-pastel) 0%,
-    var(--gold-light) 30%,
-    var(--rose-soft) 55%,
-    var(--violet-pastel) 80%,
-    var(--rose-deep) 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
+  color: var(--rose-pastel); /* visible fallback if the clip is unsupported */
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .gradient-title {
+    background: linear-gradient(
+      100deg,
+      var(--rose-pastel) 0%,
+      var(--gold-light) 30%,
+      var(--rose-soft) 55%,
+      var(--violet-pastel) 80%,
+      var(--rose-deep) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
 }
 
 /* Custom scrollbar (desktop) */

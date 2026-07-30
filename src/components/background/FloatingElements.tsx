@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
+import { onIdle } from "../../utils/idle";
 import { rand, randInt, pick } from "../../utils/random";
 
 /**
@@ -41,13 +42,27 @@ const PETALS = ["\ud83c\udf38", "\ud83c\udf37", "\ud83c\udf39"]; // 🌸 🌷 �
 const HEART_COLORS = ["#ff9fc4", "#ff5f9e", "#ffd6e8", "#c9b6ff", "#f6c667"];
 const PARTICLE_HUES = [45, 330, 350, 265, 200];
 
-/** Density factor by viewport width — protects low-end phones. */
+/** True on small screens — drives both density and per-sprite paint cost. */
+function isPhone(): boolean {
+  return typeof window !== "undefined" && window.innerWidth < 640;
+}
+
+/**
+ * Density factor by viewport width *and* device power — protects low-end
+ * phones, where every sprite costs a composited layer plus a blurred shadow.
+ */
 function densityFactor(): number {
   if (typeof window === "undefined") return 1;
   const w = window.innerWidth;
-  if (w < 640) return 0.7;
-  if (w < 1024) return 0.9;
-  return 1;
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  const weak = (nav.hardwareConcurrency ?? 8) <= 4 || (nav.deviceMemory ?? 8) <= 4;
+
+  let f: number;
+  if (w < 640) f = 0.3;
+  else if (w < 1024) f = 0.6;
+  else f = 1;
+
+  return weak ? f * 0.6 : f;
 }
 
 function makeItems(): FloatItem[] {
@@ -155,7 +170,17 @@ function makeItems(): FloatItem[] {
 }
 
 /** A crisp, colourful SVG balloon (any hue) with highlight, knot and string. */
-function Balloon({ hue, size, id }: { hue: number; size: number; id: number }) {
+function Balloon({
+  hue,
+  size,
+  id,
+  plain,
+}: {
+  hue: number;
+  size: number;
+  id: number;
+  plain: boolean;
+}) {
   const gid = `balloon-grad-${id}`;
   const light = `hsl(${hue} 90% 74%)`;
   const dark = `hsl(${hue} 78% 52%)`;
@@ -165,7 +190,12 @@ function Balloon({ hue, size, id }: { hue: number; size: number; id: number }) {
       height={size * 1.5}
       viewBox="0 0 40 60"
       aria-hidden="true"
-      style={{ display: "block", filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.3))" }}
+      style={{
+        display: "block",
+        // Blur-based filters are the single most expensive part of this layer;
+        // phones get the sprite without them.
+        filter: plain ? undefined : "drop-shadow(0 6px 10px rgba(0,0,0,0.3))",
+      }}
     >
       <defs>
         <radialGradient id={gid} cx="36%" cy="30%" r="75%">
@@ -187,14 +217,25 @@ function Balloon({ hue, size, id }: { hue: number; size: number; id: number }) {
 }
 
 /** A small glowing heart. */
-function GlowHeart({ color, size }: { color: string; size: number }) {
+function GlowHeart({
+  color,
+  size,
+  plain,
+}: {
+  color: string;
+  size: number;
+  plain: boolean;
+}) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
       aria-hidden="true"
-      style={{ display: "block", filter: `drop-shadow(0 0 6px ${color})` }}
+      style={{
+        display: "block",
+        filter: plain ? undefined : `drop-shadow(0 0 6px ${color})`,
+      }}
     >
       <path
         d="M12 21s-7-4.35-9.5-8.5C1 9.4 2.6 5.6 6.2 5.6c2 0 3.2 1.2 3.8 2.3.6-1.1 1.8-2.3 3.8-2.3 3.6 0 5.2 3.8 3.7 6.9C19 16.65 12 21 12 21z"
@@ -204,7 +245,7 @@ function GlowHeart({ color, size }: { color: string; size: number }) {
   );
 }
 
-function FloatSprite({ item }: { item: FloatItem }) {
+function FloatSprite({ item, plain }: { item: FloatItem; plain: boolean }) {
   const rises =
     item.kind === "balloon" || item.kind === "particle" || item.kind === "heart";
   const crosses = item.kind === "butterfly";
@@ -232,7 +273,9 @@ function FloatSprite({ item }: { item: FloatItem }) {
           width: `${item.size}px`,
           height: `${item.size}px`,
           background: `radial-gradient(circle, hsl(${item.hue} 100% 85%) 0%, hsla(${item.hue},100%,70%,0) 70%)`,
-          boxShadow: `0 0 12px 3px hsla(${item.hue}, 100%, 75%, 0.7)`,
+          boxShadow: plain
+            ? undefined
+            : `0 0 12px 3px hsla(${item.hue}, 100%, 75%, 0.7)`,
         }}
       />
     );
@@ -241,7 +284,7 @@ function FloatSprite({ item }: { item: FloatItem }) {
   if (item.kind === "balloon") {
     return (
       <span aria-hidden="true" className="absolute" style={style}>
-        <Balloon hue={item.hue!} size={item.size} id={item.id} />
+        <Balloon hue={item.hue!} size={item.size} id={item.id} plain={plain} />
       </span>
     );
   }
@@ -249,7 +292,7 @@ function FloatSprite({ item }: { item: FloatItem }) {
   if (item.kind === "heart") {
     return (
       <span aria-hidden="true" className="absolute" style={style}>
-        <GlowHeart color={item.color!} size={item.size} />
+        <GlowHeart color={item.color!} size={item.size} plain={plain} />
       </span>
     );
   }
@@ -263,8 +306,9 @@ function FloatSprite({ item }: { item: FloatItem }) {
         ...style,
         fontSize: `${item.size}px`,
         lineHeight: 1,
-        filter:
-          item.kind === "butterfly"
+        filter: plain
+          ? undefined
+          : item.kind === "butterfly"
             ? "drop-shadow(0 0 10px rgba(201,182,255,0.9))"
             : "drop-shadow(0 3px 8px rgba(0,0,0,0.45)) drop-shadow(0 0 6px rgba(255,214,232,0.35))",
       }}
@@ -278,9 +322,15 @@ function FloatSprite({ item }: { item: FloatItem }) {
 
 export function FloatingElements() {
   const reduced = useReducedMotion();
-  const items = useMemo(makeItems, []);
+  const plain = useMemo(isPhone, []);
 
-  if (reduced) return null;
+  // Mount this whole layer only once the browser is idle: building the sprite
+  // list (SVGs included) must never sit between the user and the first paint.
+  const [ready, setReady] = useState(false);
+  useEffect(() => onIdle(() => setReady(true)), []);
+  const items = useMemo(() => (ready ? makeItems() : []), [ready]);
+
+  if (reduced || !ready) return null;
 
   return (
     <div
@@ -316,7 +366,7 @@ export function FloatingElements() {
         }
       `}</style>
       {items.map((item) => (
-        <FloatSprite key={item.id} item={item} />
+        <FloatSprite key={item.id} item={item} plain={plain} />
       ))}
     </div>
   );

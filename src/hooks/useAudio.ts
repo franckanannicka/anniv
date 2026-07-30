@@ -25,14 +25,19 @@ export function useAudio(src: string) {
     const audio = new Audio(src);
     audio.loop = true;
     audio.volume = FULL_VOLUME;
-    audio.preload = "auto";
+    // "metadata", not "auto": the track weighs several MB and downloading it
+    // eagerly starved the first paint on mobile data. The browser streams it
+    // as soon as play() is called, which is all we need.
+    audio.preload = "metadata";
     audioRef.current = audio;
 
     const onCanPlay = () => setIsReady(true);
-    audio.addEventListener("canplaythrough", onCanPlay);
+    audio.addEventListener("loadedmetadata", onCanPlay);
+    audio.addEventListener("canplay", onCanPlay);
 
     return () => {
-      audio.removeEventListener("canplaythrough", onCanPlay);
+      audio.removeEventListener("loadedmetadata", onCanPlay);
+      audio.removeEventListener("canplay", onCanPlay);
       audio.pause();
       audioRef.current = null;
       if (fadeRef.current) window.clearInterval(fadeRef.current);

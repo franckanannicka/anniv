@@ -10,13 +10,29 @@
     <meta name="description" content="Une surprise t'attend..." />
     <title>Une surprise t'attend ✨</title>
 
-    <!-- Fonts: display serif + elegant script + clean body -->
+    <!-- Fonts: display serif + elegant script + clean body.
+         Loaded non-blocking (media="print" → swapped to "all" on load) so the
+         first paint never waits on a third-party stylesheet — a big win on
+         mobile networks. `display=swap` shows system fonts meanwhile. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Poppins:wght@300;400;500;600&display=swap"
-      rel="stylesheet"
     />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Poppins:wght@300;400;500;600&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Poppins:wght@300;400;500;600&display=swap"
+      />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>

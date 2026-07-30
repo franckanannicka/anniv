@@ -37,14 +37,19 @@ export const riseIn: Variants = {
   },
 };
 
-/** Per-letter reveal used by the animated title. */
+/**
+ * Per-letter reveal used by the animated title.
+ * No `filter: blur()` here on purpose: blurring every letter forced a separate
+ * render surface per glyph (invisible text on Android, and a heavy GPU cost on
+ * phones). Opacity + transform only — composited, and always ending fully
+ * opaque and perfectly sharp.
+ */
 export const letterReveal: Variants = {
-  hidden: { opacity: 0, y: 40, rotateX: -90, filter: "blur(6px)" },
+  hidden: { opacity: 0, y: 40, rotateX: -90 },
   visible: {
     opacity: 1,
     y: 0,
     rotateX: 0,
-    filter: "blur(0px)",
     transition: { duration: 0.7, ease: EASE_LUXE },
   },
 };
