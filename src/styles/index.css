@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================================
+   Design tokens (CSS variables) — single source of truth for the palette.
+   Mirrored in tailwind.config.js so both Tailwind classes and raw CSS agree.
+   ========================================================================= */
+:root {
+  --night-900: #070512;
+  --night-800: #0d0a24;
+  --night-700: #161038;
+
+  --rose-pastel: #ffd6e8;
+  --rose-soft: #ff9fc4;
+  --rose-deep: #ff5f9e;
+
+  --gold-light: #ffe9b8;
+  --gold: #f6c667;
+  --gold-rose: #e7b7a3;
+
+  --violet-pastel: #c9b6ff;
+  --violet-soft: #a78bfa;
+
+  /* Fluid type scale (mobile-first, clamps between phone and ultrawide) */
+  --step--1: clamp(0.82rem, 0.75rem + 0.4vw, 1rem);
+  --step-0: clamp(1rem, 0.9rem + 0.6vw, 1.25rem);
+  --step-1: clamp(1.3rem, 1.1rem + 1.2vw, 2rem);
+  --step-2: clamp(1.8rem, 1.4rem + 2.4vw, 3.25rem);
+  --step-3: clamp(2.4rem, 1.6rem + 4.5vw, 5rem);
+
+  color-scheme: dark;
+}
+
+/* =========================================================================
+   Base
+   ========================================================================= */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Poppins", system-ui, sans-serif;
+  background: var(--night-900);
+  color: #fff;
+  overflow-x: hidden;
+  /* Account for iPhone notch / safe areas */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* A soft, living gradient that sits under the canvas night sky */
+.app-shell {
+  position: relative;
+  min-height: 100dvh;
+  width: 100%;
+  overflow-x: hidden;
+  background:
+    radial-gradient(120% 90% at 50% -10%, #1b1440 0%, transparent 55%),
+    radial-gradient(90% 70% at 80% 100%, #2a1240 0%, transparent 60%),
+    linear-gradient(180deg, var(--night-900) 0%, var(--night-800) 55%, #0a0722 100%);
+}
+
+/* Glassmorphism helper */
+.glass {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.14),
+    rgba(255, 255, 255, 0.04)
+  );
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* Text with a soft luminous glow */
+.text-glow {
+  text-shadow:
+    0 0 12px rgba(255, 214, 232, 0.55),
+    0 0 30px rgba(255, 159, 196, 0.35);
+}
+.text-glow-gold {
+  text-shadow:
+    0 0 14px rgba(246, 198, 103, 0.6),
+    0 0 34px rgba(231, 183, 163, 0.4);
+}
+
+/* Gradient text used for the big title */
+.gradient-title {
+  background: linear-gradient(
+    100deg,
+    var(--rose-pastel) 0%,
+    var(--gold-light) 30%,
+    var(--rose-soft) 55%,
+    var(--violet-pastel) 80%,
+    var(--rose-deep) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Custom scrollbar (desktop) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--rose-soft), var(--violet-soft));
+  border-radius: 99px;
+}
+
+/* Keyboard focus visibility — accessibility floor */
+:focus-visible {
+  outline: 2px solid var(--rose-pastel);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+/* Hide native scrollbar on the vertical experience while keeping scroll */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* =========================================================================
+   Reduced motion — respect the user's OS preference.
+   We keep content fully visible and simply calm every animation.
+   ========================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
