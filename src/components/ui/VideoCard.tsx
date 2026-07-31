@@ -18,10 +18,39 @@ export function VideoCard({ audio }: { audio: AudioController }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [muted, setMuted] = useState(true);
 
+  // Autoplay, reliably, on desktop as well as on phones.
+  // `muted` is forced on the element itself *before* the first play() call:
+  // React applies the prop asynchronously, and a desktop browser that sees an
+  // un-muted video at that instant refuses to start — leaving a black frame.
+  // We also retry as soon as data arrives, in case the first attempt was too
+  // early, and clear the retry on unmount.
   useEffect(() => {
-    videoRef.current?.play().catch(() => {
-      /* If autoplay is refused, controls remain usable. */
-    });
+    const v = videoRef.current;
+    if (!v) return;
+
+    let started = false;
+    const stop = () => {
+      v.removeEventListener("loadeddata", start);
+      v.removeEventListener("canplay", start);
+    };
+    function start() {
+      if (started) return; // never fight the user once it is running (unmute!)
+      v!.muted = true;
+      v!.play()
+        .then(() => {
+          started = true;
+          stop();
+        })
+        .catch(() => {
+          /* If autoplay is refused, the frame is still painted and the controls
+             remain usable. */
+        });
+    }
+
+    start();
+    v.addEventListener("loadeddata", start);
+    v.addEventListener("canplay", start);
+    return stop;
   }, []);
 
   const toggleMute = () => {
@@ -72,6 +101,10 @@ export function VideoCard({ audio }: { audio: AudioController }) {
         style={{ boxShadow: "0 24px 70px rgba(0,0,0,0.5), 0 0 44px rgba(255,159,196,0.35)" }}
       >
         <div className="relative overflow-hidden rounded-[1.5rem] border border-white/25 bg-black/50">
+          {/* preload="auto": the clip weighs only ~300 Ko and lives inside the
+              lazily loaded experience scene, so it costs nothing at first
+              paint — whereas "metadata" left desktop browsers on a black
+              frame, with autoplay never starting. */}
           <video
             ref={videoRef}
             src={MEDIA.video}
@@ -79,7 +112,7 @@ export function VideoCard({ audio }: { audio: AudioController }) {
             loop
             playsInline
             autoPlay
-            preload="metadata"
+            preload="auto"
             controls={false}
             className="block h-auto max-h-[66vh] w-full object-contain"
           />
